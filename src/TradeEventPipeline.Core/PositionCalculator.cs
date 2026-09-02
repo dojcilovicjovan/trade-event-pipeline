@@ -5,6 +5,8 @@ namespace TradeEventPipeline.Core;
 /// </summary>
 public static class PositionCalculator
 {
+
+    // Given the full event log, calculate the current position for each symbol.
     public static IReadOnlyDictionary<string, decimal> CalculatePositions(
         IReadOnlyList<TradeExecuted> events)
     {
@@ -26,4 +28,19 @@ public static class PositionCalculator
 
         return positions;
     }
+
+    // Change the position for a single trade event, given the current positions.
+    public static void AmendPosition(
+        Dictionary<string, decimal> positions, 
+        TradeExecuted @event)
+    {
+        if (positions.TryGetValue(@event.Symbol, out var current))
+        {
+            positions[@event.Symbol] = current + @event.Quantity;
+        }
+        else
+        {
+            positions[@event.Symbol] = @event.Quantity;
+        }
+    }   
 }

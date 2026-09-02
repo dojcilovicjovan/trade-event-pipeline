@@ -5,6 +5,8 @@ namespace TradeEventPipeline.Core;
 /// </summary>
 public static class CashFlowCalculator
 {
+
+    // Given the full event log, calculate the current cashflow for each symbol.
     public static IReadOnlyDictionary<string, decimal> CalculateCashFlows(
         IReadOnlyList<TradeExecuted> events)
     {
@@ -25,4 +27,19 @@ public static class CashFlowCalculator
 
         return cashflows;
     }
+
+    // Change the cashflow for a single trade event, given the current cashflows.
+    public static void AmendCashFlow(
+        Dictionary<string, decimal> cashflows, 
+        TradeExecuted @event)
+    {
+        if (cashflows.TryGetValue(@event.Symbol, out var current))
+        {
+            cashflows[@event.Symbol] = current - (@event.Quantity * @event.Price);
+        }
+        else
+        {
+            cashflows[@event.Symbol] = -(@event.Quantity * @event.Price);
+        }
+    }   
 }
