@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TradeEventPipeline.Core/TradeEventPipeline.Core.csproj" />
+    <Project Path="src/TradeEventPipeline.Producer/TradeEventPipeline.Producer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TradeEventPipeline.Core.Tests/TradeEventPipeline.Core.Tests.csproj" />
