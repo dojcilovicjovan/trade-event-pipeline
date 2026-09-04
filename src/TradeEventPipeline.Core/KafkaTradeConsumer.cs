@@ -13,7 +13,8 @@ public sealed class KafkaTradeConsumer : IDisposable
     private readonly IConsumer<string, string> _consumer;
     private readonly Dictionary<string, decimal> _positions;
     private readonly Dictionary<string, decimal> _cashFlows;
-
+    private readonly HashSet<Guid> _coveredTrades;  
+    
     public KafkaTradeConsumer(string bootstrapServers, string topic)
     {
         var config = new ConsumerConfig { 
@@ -26,6 +27,7 @@ public sealed class KafkaTradeConsumer : IDisposable
         this._consumer.Subscribe(this._topic);
         this._positions = new Dictionary<string, decimal>();
         this._cashFlows = new Dictionary<string, decimal>();
+        this._coveredTrades = new HashSet<Guid>();
     }
 
     public void StartConsuming()
@@ -40,12 +42,22 @@ public sealed class KafkaTradeConsumer : IDisposable
                     Console.WriteLine("Failed to deserialize message.");
                     continue;
                 }
-                PositionCalculator.AmendPosition(this._positions, @event);
-                CashFlowCalculator.AmendCashFlow(this._cashFlows, @event);
+                if (!this._coveredTrades.Contains(@event.TradeId))
+                {
+                    Console.WriteLine($"Processing trade {@event.TradeId} for symbol {@event.Symbol}");
+                    PositionCalculator.AmendPosition(this._positions, @event);
+                    CashFlowCalculator.AmendCashFlow(this._cashFlows, @event);
 
-                Console.WriteLine($"Updated position for {@event.Symbol}: {_positions[@event.Symbol]}");
-                Console.WriteLine($"Updated cashflow for {@event.Symbol}: {_cashFlows[@event.Symbol]}");
+                    this._coveredTrades.Add(@event.TradeId);
+                    Console.WriteLine($"Updated position for {@event.Symbol}: {_positions[@event.Symbol]}");
+                    Console.WriteLine($"Updated cashflow for {@event.Symbol}: {_cashFlows[@event.Symbol]}");
                 
+                }
+                else
+                {
+                    Console.WriteLine($"Skipping already processed trade {@event.TradeId} for symbol {@event.Symbol}");
+                }
+
                 this._consumer.Commit(result);   // commit AFTER processing
             }
     }
