@@ -22,7 +22,11 @@ public sealed class KafkaTradeConsumer : IDisposable
             GroupId = "trade-event-group", 
             AutoOffsetReset = AutoOffsetReset.Earliest,   // if no committed offset, start from the beginning
             EnableAutoCommit = false };
-        this._consumer = new ConsumerBuilder<string, string>(config).Build();
+        this._consumer = new ConsumerBuilder<string, string>(config)
+            .SetPartitionsAssignedHandler((c, partitions) =>
+            {
+                Console.WriteLine($"Assigned partitions: {string.Join(", ", partitions)}");
+            }).Build();
         this._topic = topic;
         this._consumer.Subscribe(this._topic);
         this._positions = new Dictionary<string, decimal>();
@@ -30,19 +34,20 @@ public sealed class KafkaTradeConsumer : IDisposable
         this._coveredTrades = new HashSet<Guid>();
     }
 
-    public void StartConsuming()
+    public void StartConsuming(CancellationToken token)
     {
-        while (true)
+        try
+        {
+            while (!token.IsCancellationRequested)
             {
-                var result = this._consumer.Consume();   // blocks until a message arrives
+                var result = this._consumer.Consume(token);   // blocks until a message arrives
                 Console.WriteLine($"Received message at {result.TopicPartitionOffset}: {result.Message.Value}");
                 TradeExecuted? @event = JsonSerializer.Deserialize<TradeExecuted>(result.Message.Value);
                 if (@event == null)
                 {
                     Console.WriteLine("Failed to deserialize message.");
-                    continue;
                 }
-                if (!this._coveredTrades.Contains(@event.TradeId))
+                else if (!this._coveredTrades.Contains(@event.TradeId))
                 {
                     Console.WriteLine($"Processing trade {@event.TradeId} for symbol {@event.Symbol}");
                     PositionCalculator.AmendPosition(this._positions, @event);
@@ -60,6 +65,12 @@ public sealed class KafkaTradeConsumer : IDisposable
 
                 this._consumer.Commit(result);   // commit AFTER processing
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // cancellation requested — this is expected on shutdown, not an error
+            Console.WriteLine("Consume loop cancelled.");
+        }
     }
 
     public void Dispose()
