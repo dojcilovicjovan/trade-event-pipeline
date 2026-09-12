@@ -26,6 +26,10 @@ public sealed class KafkaTradeConsumer : IDisposable
             .SetPartitionsAssignedHandler((c, partitions) =>
             {
                 Console.WriteLine($"Assigned partitions: {string.Join(", ", partitions)}");
+                // When partitions are assigned, seek to the beginning of each partition.
+                // In a production environment, we would persist snapshots of the state 
+                // and restore from them instead of starting from the beginning.
+                return partitions.Select(tp => new TopicPartitionOffset(tp, Offset.Beginning));
             }).Build();
         this._topic = topic;
         this._consumer.Subscribe(this._topic);

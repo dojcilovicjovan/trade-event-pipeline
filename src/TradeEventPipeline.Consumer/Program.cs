@@ -3,7 +3,7 @@ using TradeEventPipeline.Core;
 
 class Program
 {
-    static void Main()
+    static async Task Main()
     {
         string bootstrapServers = "localhost:9092";
         string topic = "trades";
@@ -16,6 +16,8 @@ class Program
             cts.Cancel();             // flip the cancellation switch
             Console.WriteLine("Shutdown requested, stopping...");
         };
+
+        await KafkaTradeInitializer.EnsureKafkaTopicAsync(bootstrapServers, topic);
 
         using (var consumer = new KafkaTradeConsumer(bootstrapServers, topic))
         {
