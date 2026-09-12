@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace TradeEventPipeline.Core;
 
 /// <summary>
@@ -10,20 +12,13 @@ public static class PositionCalculator
     public static IReadOnlyDictionary<string, decimal> CalculatePositions(
         IReadOnlyList<TradeExecuted> events)
     {
-        var positions = new Dictionary<string, decimal>();
+        var positions = new ConcurrentDictionary<string, decimal>();
 
         foreach (var e in events)
         {
             // Signed quantity: buys are positive, sells negative,
             // so a symbol's position is just the running sum.
-            if (positions.TryGetValue(e.Symbol, out var current))
-            {
-                positions[e.Symbol] = current + e.Quantity;
-            }
-            else
-            {
-                positions[e.Symbol] = e.Quantity;
-            }
+            positions.AddOrUpdate(e.Symbol, e.Quantity, (key, current) => current + e.Quantity);
         }
 
         return positions;
@@ -31,16 +26,9 @@ public static class PositionCalculator
 
     // Change the position for a single trade event, given the current positions.
     public static void AmendPosition(
-        Dictionary<string, decimal> positions, 
+        ConcurrentDictionary<string, decimal> positions, 
         TradeExecuted @event)
     {
-        if (positions.TryGetValue(@event.Symbol, out var current))
-        {
-            positions[@event.Symbol] = current + @event.Quantity;
-        }
-        else
-        {
-            positions[@event.Symbol] = @event.Quantity;
-        }
+        positions.AddOrUpdate(@event.Symbol, @event.Quantity, (key, current) => current + @event.Quantity);
     }   
 }

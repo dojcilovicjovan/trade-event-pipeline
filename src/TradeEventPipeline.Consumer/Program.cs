@@ -7,7 +7,7 @@ class Program
     {
         string bootstrapServers = "localhost:9092";
         string topic = "trades";
-
+        
         using var cts = new CancellationTokenSource();
 
         Console.CancelKeyPress += (sender, e) =>
@@ -19,9 +19,15 @@ class Program
 
         await KafkaTradeInitializer.EnsureKafkaTopicAsync(bootstrapServers, topic);
 
+        var builder = WebApplication.CreateBuilder();
+        var app = builder.Build();
+
+
         using (var consumer = new KafkaTradeConsumer(bootstrapServers, topic))
         {
-            consumer.StartConsuming(cts.Token);   // pass the token in
+            _ = Task.Run(() => consumer.StartConsuming(cts.Token));
+            app.MapGet("/positions", () => consumer.Positions);
+            app.Run();
         }
     }
 }

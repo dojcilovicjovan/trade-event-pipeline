@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace TradeEventPipeline.Core;
 
 /// <summary>
@@ -10,19 +12,13 @@ public static class CashFlowCalculator
     public static IReadOnlyDictionary<string, decimal> CalculateCashFlows(
         IReadOnlyList<TradeExecuted> events)
     {
-        var cashflows = new Dictionary<string, decimal>();
+        var cashflows = new ConcurrentDictionary<string, decimal>();
 
         foreach (var e in events)
         {
             // Negate the cashflow because buys are negative cashflow, sells are positive cashflow.
-            if (cashflows.TryGetValue(e.Symbol, out var current))
-            {
-                cashflows[e.Symbol] = current - (e.Quantity * e.Price);
-            }
-            else
-            {
-                cashflows[e.Symbol] = -(e.Quantity * e.Price);
-            }
+
+            cashflows.AddOrUpdate(e.Symbol, -(e.Quantity * e.Price), (key, current) => current - (e.Quantity * e.Price));
         }
 
         return cashflows;
@@ -30,16 +26,9 @@ public static class CashFlowCalculator
 
     // Change the cashflow for a single trade event, given the current cashflows.
     public static void AmendCashFlow(
-        Dictionary<string, decimal> cashflows, 
+        ConcurrentDictionary<string, decimal> cashflows, 
         TradeExecuted @event)
-    {
-        if (cashflows.TryGetValue(@event.Symbol, out var current))
-        {
-            cashflows[@event.Symbol] = current - (@event.Quantity * @event.Price);
-        }
-        else
-        {
-            cashflows[@event.Symbol] = -(@event.Quantity * @event.Price);
-        }
+    {   
+        cashflows.AddOrUpdate(@event.Symbol, -(@event.Quantity * @event.Price), (key, current) => current - (@event.Quantity * @event.Price));
     }   
 }

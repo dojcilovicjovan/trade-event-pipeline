@@ -1,5 +1,6 @@
 namespace TradeEventPipeline.Core;
 using Confluent.Kafka;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 
@@ -11,10 +12,12 @@ public sealed class KafkaTradeConsumer : IDisposable
 
     private readonly string _topic;
     private readonly IConsumer<string, string> _consumer;
-    private readonly Dictionary<string, decimal> _positions;
-    private readonly Dictionary<string, decimal> _cashFlows;
+    private readonly ConcurrentDictionary<string, decimal> _positions;
+    private readonly ConcurrentDictionary<string, decimal> _cashFlows;
     private readonly HashSet<Guid> _coveredTrades;  
-    
+
+    public IReadOnlyDictionary<string, decimal> Positions => _positions;
+
     public KafkaTradeConsumer(string bootstrapServers, string topic)
     {
         var config = new ConsumerConfig { 
@@ -33,11 +36,10 @@ public sealed class KafkaTradeConsumer : IDisposable
             }).Build();
         this._topic = topic;
         this._consumer.Subscribe(this._topic);
-        this._positions = new Dictionary<string, decimal>();
-        this._cashFlows = new Dictionary<string, decimal>();
+        this._positions = new ConcurrentDictionary<string, decimal>();
+        this._cashFlows = new ConcurrentDictionary<string, decimal>();
         this._coveredTrades = new HashSet<Guid>();
     }
-
     public void StartConsuming(CancellationToken token)
     {
         try
