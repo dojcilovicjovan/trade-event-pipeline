@@ -18,6 +18,8 @@ public sealed class KafkaTradeConsumer : IDisposable
 
     public IReadOnlyDictionary<string, decimal> Positions => _positions;
 
+    public IReadOnlyDictionary<string, decimal> CashFlows => _cashFlows;
+
     public KafkaTradeConsumer(string bootstrapServers, string topic)
     {
         var config = new ConsumerConfig { 

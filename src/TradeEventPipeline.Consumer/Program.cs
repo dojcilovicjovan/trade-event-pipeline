@@ -1,33 +1,34 @@
-﻿namespace TradeEventPipeline.Consumer;
-using TradeEventPipeline.Core;
+﻿using TradeEventPipeline.Core;
+using TradeEventPipeline.Consumer;
 
-class Program
-{
-    static async Task Main()
-    {
-        string bootstrapServers = "localhost:9092";
-        string topic = "trades";
-        
-        using var cts = new CancellationTokenSource();
+string bootstrapServers = "localhost:9092";
+string topic = "trades";
 
-        Console.CancelKeyPress += (sender, e) =>
-        {
-            e.Cancel = true;          // don't hard-kill; we'll shut down gracefully
-            cts.Cancel();             // flip the cancellation switch
-            Console.WriteLine("Shutdown requested, stopping...");
-        };
+// Ensure the topic exists before anything subscribes/produces (idempotent).
+await KafkaTradeInitializer.EnsureKafkaTopicAsync(bootstrapServers, topic);
 
-        await KafkaTradeInitializer.EnsureKafkaTopicAsync(bootstrapServers, topic);
+var builder = WebApplication.CreateBuilder(args);
 
-        var builder = WebApplication.CreateBuilder();
-        var app = builder.Build();
+// Register the consumer as a singleton so the BackgroundService and the HTTP   
+// endpoints share the SAME instance (and therefore the same live position state).
+builder.Services.AddSingleton(new KafkaTradeConsumer(bootstrapServers, topic));
 
+// Register the consumer loop as a hosted background service. The host starts it
+// on startup and cancels its token on shutdown (Ctrl+C / SIGTERM).
+builder.Services.AddHostedService<TradeConsumerService>();
 
-        using (var consumer = new KafkaTradeConsumer(bootstrapServers, topic))
-        {
-            _ = Task.Run(() => consumer.StartConsuming(cts.Token));
-            app.MapGet("/positions", () => consumer.Positions);
-            app.Run();
-        }
-    }
-}
+var app = builder.Build();
+
+// makes "/" serve index.html
+app.UseDefaultFiles();
+
+// serves files from wwwroot
+app.UseStaticFiles();
+
+// Read the shared consumer instance from DI to expose its state over HTTP.
+var consumer = app.Services.GetRequiredService<KafkaTradeConsumer>();
+
+app.MapGet("/positions", () => consumer.Positions);
+app.MapGet("/cashflows", () => consumer.CashFlows);
+
+app.Run();

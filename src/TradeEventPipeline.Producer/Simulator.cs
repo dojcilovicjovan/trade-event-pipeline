@@ -28,8 +28,8 @@ class Simulator
                         TradeExecuted trade = tradeGenerator.GenerateTrade();
                         await producer.Produce(trade);
 
-                        // wait between 0.2 and 0.8 seconds before producing the next trade
-                        await Task.Delay(Random.Shared.Next(200, 800), cts.Token); 
+                        // wait between 0.3 and 0.8 seconds before producing the next trade
+                        await Task.Delay(Random.Shared.Next(300, 800), cts.Token); 
                     }
             }
             catch (OperationCanceledException)

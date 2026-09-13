@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Position Service</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f1115; color: #e6e6e6; }
+        h1 { font-size: 1.3rem; font-weight: 600; }
+        .meta { color: #8a8f98; font-size: 0.85rem; margin-bottom: 1rem; }
+        table { border-collapse: collapse; min-width: 420px; }
+        th, td { padding: 0.5rem 1rem; text-align: right; border-bottom: 1px solid #23262d; }
+        th { text-align: right; color: #8a8f98; font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td:first-child, th:first-child { text-align: left; font-weight: 600; }
+        .pos { color: #4ade80; }   /* long  */
+        .neg { color: #f87171; }   /* short */
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; margin-right: 6px; }
+    </style>
+</head>
+<body>
+    <h1><span class="dot"></span>Position Service</h1>
+    <div class="meta">Live positions and cash flows &middot; auto-refreshing every second &middot; last update: <span id="updated">—</span></div>
+
+    <table>
+        <thead>
+            <tr><th>Symbol</th><th>Position</th><th>Cash Flow</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+    </table>
+
+    <script>
+        async function refresh() {
+            try {
+                const [posRes, cashRes] = await Promise.all([
+                    fetch('/positions'),
+                    fetch('/cashflows')
+                ]);
+                const positions = await posRes.json();
+                const cashflows = await cashRes.json();
+
+                // Union of all symbols seen in either view.
+                const symbols = [...new Set([...Object.keys(positions), ...Object.keys(cashflows)])].sort();
+
+                const rows = symbols.map(sym => {
+                    const pos = positions[sym] ?? 0;
+                    const cash = cashflows[sym] ?? 0;
+                    const posClass = pos < 0 ? 'neg' : 'pos';
+                    const cashClass = cash < 0 ? 'neg' : 'pos';
+                    return `<tr>
+                        <td>${sym}</td>
+                        <td class="${posClass}">${Number(pos).toLocaleString()}</td>
+                        <td class="${cashClass}">${Number(cash).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    </tr>`;
+                }).join('');
+
+                document.getElementById('rows').innerHTML = rows;
+                document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+            } catch (e) {
+                document.getElementById('updated').textContent = 'error fetching';
+            }
+        }
+
+        refresh();
+        setInterval(refresh, 1000);
+    </script>
+</body>
+</html>
