@@ -1,0 +1,19 @@
+# ---- Build stage ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy csproj files first and restore — this layer caches so restore only
+# re-runs when dependencies change, not on every code edit.
+COPY src/TradeEventPipeline.Core/*.csproj src/TradeEventPipeline.Core/
+COPY src/TradeEventPipeline.Consumer/*.csproj src/TradeEventPipeline.Consumer/
+RUN dotnet restore src/TradeEventPipeline.Consumer/TradeEventPipeline.Consumer.csproj
+
+# Copy the rest of the source and publish.
+COPY src/ src/
+RUN dotnet publish src/TradeEventPipeline.Consumer/TradeEventPipeline.Consumer.csproj -c Release -o /app/publish
+
+# ---- Runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "TradeEventPipeline.Consumer.dll"]

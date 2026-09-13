@@ -5,7 +5,8 @@ class Simulator
 {
     static async Task Main()
     {
-        string bootstrapServers = "localhost:9092";
+        string bootstrapServers =
+            Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092";
         string topic = "trades";
         var tradeGenerator = new TradeGenerator();
         using var cts = new CancellationTokenSource();
