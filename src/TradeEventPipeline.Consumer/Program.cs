@@ -1,7 +1,8 @@
 ﻿using TradeEventPipeline.Core;
 using TradeEventPipeline.Consumer;
 
-string bootstrapServers = "localhost:9092";
+string bootstrapServers =
+    Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092";;
 string topic = "trades";
 
 // Ensure the topic exists before anything subscribes/produces (idempotent).
